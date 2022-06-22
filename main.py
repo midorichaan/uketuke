@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import os
+import sys
 import tkinter
 import tkinter.font as font
 from logging import basicConfig, getLogger, INFO
@@ -42,7 +43,20 @@ def setup_root(manage: bool=False):
         root.title(u"受付管理システム (一般用)")
     root.geometry("400x400")
 
-    
+#handle_args
+def handle_args(args):
+    if args[1] and len(args) == 2:
+        if args[1] == "-staff":
+            return True
+        elif args[1] == "-user":
+            return False
+    else:
+        logger.error("INIT: setup failed (invalid args)")
+        return
     
 if __name__ == "__main__":
-    setup_root()
+    args = sys.argv
+    ret = handle_args(args)
+
+    #setup
+    setup_root(manage)
