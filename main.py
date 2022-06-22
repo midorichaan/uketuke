@@ -41,7 +41,22 @@ def setup_root(manage: bool=False):
     else:
         logger.info("SETUP: logged in as user")
         root.title(u"受付管理システム (一般用)")
-    root.geometry("400x400")
+
+    tb = tkinter.Label(root,text="名前")
+    txt = tkinter.Entry(root)
+    ok = tkinter.Button(root, text="完了", font=font, command=lambda: None)
+    cl = tkinter.Button(root, text="入力クリア", font=font, command=lambda: txt.set(""))
+    exit = tkinter.Button(root,text="終了", font=font, command=root.destroy)
+
+    #place entry
+    tb.pack()
+    txt.pack()
+    ok.pack()
+    cl.pack()
+    exit.pack()
+
+    root.geometry("400x200")
+    root.resizable(False, False)
 
 #init_database
 async def init_database():
@@ -64,6 +79,14 @@ def handle_args(args):
 if __name__ == "__main__":
     args = sys.argv
     ret = handle_args(args)
+    if ret == None:
+        logger.error("RUN: error while handling args. exit")
+        return
 
-    #setup
-    setup_root(manage)
+    #run
+    try:
+        setup_root(manage)
+        root.mainloop()
+    except Exception as exc:
+        logger.error(f"RUN: error while running: {exc}")
+        root.quit()
