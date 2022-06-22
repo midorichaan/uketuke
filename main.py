@@ -32,7 +32,7 @@ font = font.Font(root, family="無心", size=20)
 
 #programs
 def setup_root(manage: bool=False):
-    global root, logger
+    global root
     logger.info("SETUP: setting up...")
 
     if manage:
@@ -42,6 +42,13 @@ def setup_root(manage: bool=False):
         logger.info("SETUP: logged in as user")
         root.title(u"受付管理システム (一般用)")
     root.geometry("400x400")
+
+#init_database
+async def init_database():
+    logger.info("SETUP: database init")
+    await db.execute(
+        "CREATE TABLE IF NOT EXISTS uketuke(user_id INTEGER, name TEXT, point BIGINT)",
+    )
 
 #handle_args
 def handle_args(args):
