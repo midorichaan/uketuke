@@ -18,11 +18,11 @@ basicConfig(
 
 #vars
 loop = asyncio.get_event_loop()
-logger = getLogger("discord")
+logger = getLogger("__main__")
 session = aiohttp.ClientSession(loop=loop)
 db = database.Database(
     host=os.environ["DB_HOST"],
-    port=os.environ["DB_PORT"],
+    port=int(os.environ["DB_PORT"]),
     user=os.environ["DB_USER"],
     password=os.environ["DB_PASSWD"],
     db=os.environ["DB_DATABASE"]
@@ -67,7 +67,7 @@ async def init_database():
 
 #handle_args
 def handle_args(args):
-    if args[1] and len(args) == 2:
+    if len(args) == 2:
         if args[1] == "-staff":
             return True
         elif args[1] == "-user":
@@ -81,12 +81,13 @@ if __name__ == "__main__":
     ret = handle_args(args)
     if ret == None:
         logger.error("RUN: error while handling args. exit")
-        return
-
-    #run
-    try:
-        setup_root(manage)
-        root.mainloop()
-    except Exception as exc:
-        logger.error(f"RUN: error while running: {exc}")
-        root.quit()
+    else:
+        #run
+        try:
+            setup_root(ret)
+            root.mainloop()
+        except Exception as exc:
+            logger.error(f"RUN: error while running: {exc}")
+        finally:
+            root.quit()
+            loop.run_until_complete(session.close())
