@@ -46,8 +46,8 @@ class Application(tk.Tk):
         self._init()
 
     #_call_box
-    def _call_box(self, text: str):
-        messagebox.showinfo(text)
+    def _call_box(self, *, title: str, text: str):
+        messagebox.showerror(title, text)
 
     #post_dara
     async def post_data(self, id: int, point: int):
@@ -62,6 +62,20 @@ class Application(tk.Tk):
                     return True
                 else:
                     return False
+        except Exception as exc:
+            logger.error(exc)
+            return False
+
+    #get_data
+    async def get_data(self, id: int):
+        try:
+            async with session.request(
+                "GET",
+                "https://api.midorichan.cf/v1/special/bunkasai",
+                headers={"Authorization": f"Bearer {os.environ['API_TOKEN']}"},
+                json={"id": id}
+            ) as r:
+                self._cache = await r.json()
         except Exception as exc:
             logger.error(exc)
             return False
@@ -83,18 +97,18 @@ class Application(tk.Tk):
 
         if n is None or n == "":
             logger.warning("APP: missing entry 'name'")
-            self._call_box("エラー: IDを入力してください")
+            self._call_box(title="エラー", text="エラー: IDを入力してください")
             return
         if p is None or p == "":
             logger.warning("APP: missing entry 'point'")
-            self._call_box("エラー： ポイントを入力してください")
+            self._call_box(title="エラー", text="エラー： ポイントを入力してください")
             return
 
         loop.run_until_complete(self._check_id(n))
         
         if self._cache:
             logger.warning(f"APP: id {n} already exists")
-            self._call_box("エラー： 入力されたIDはすでに存在します")
+            self._call_box(title="エラー", text="エラー： 入力されたIDはすでに存在します")
             return
 
         data = {
@@ -104,12 +118,32 @@ class Application(tk.Tk):
         logger.info(f"APP: submitted data - {data}")
         self._delete_text()
 
-        if not data["id"]:
-            logger.warning("APP: id is a required argument that is missing")
-       	    return
-       	else:
-       	    query = self.post_data(data["id"], data["point"])
-            loop.run_until_complete(query)
+        self._call_box(title="Successfully submitted", text="データを登録しました")
+
+        query = self.post_data(data["id"], data["point"])
+        loop.run_until_complete(query)
+
+    #search
+    def _search(self):
+        logger.info("APP: search called")
+        i = self.entries["name_entry"].get()
+
+        if i == None:
+            logger.warning("APP: missing entry 'id'")
+            self._call_box(title="エラー", text="IDを入力してください")
+            return
+
+        loop.run_until_complete(self.get_data(i))
+        if self._cache["code"] == 200:
+            self._call_box(
+                title="情報",
+                text=f"ID: {self._cache['data']['id']} \nポイント: {self._cache['data']['point']}"
+            )
+            self._delete_text()
+        else:
+            self._call_box(title="エラー", text="そのIDでは見つかりませんでした")
+            self._delete_text()
+            return
 
     #_delete_text
     def _delete_text(self):
@@ -117,6 +151,54 @@ class Application(tk.Tk):
         self.entries["name_entry"].delete(0, tk.END)
         logger.info("APP: text 'point' cleared")
         self.entries["point_var"].set(70)
+
+    #delete_data
+    def _delete_data(self):
+        logger.info("APP: delete data called")
+        i = self.entries["name_entry"].get()
+
+        if i == None:
+            self._call_box(title="エラー", value="エラー: IDを入力してください")
+            return
+
+        loop.run_until_complete(self._check_id(i))
+        
+        if not self._cache:
+            logger.warning(f"APP: id {i} not exists")
+            self._call_box(title="エラー", text="エラー： 入力されたIDは存在しません")
+            return
+        else:
+            query = db.execute("DELETE FROM uketuke WHERE id=%s", (i,))
+            loop.run_until_complete(query)
+            self._call_box(title="情報", text="データは正常に削除されました")
+            return
+
+    #fix_data
+    def _fix_data(self):
+        logger.info("APP: fix data called")
+        i = self.entries["name_entry"].get()
+        p = self.entries["point_entry"].get()
+
+        if i == None:
+            self._call_box(title="エラー", value="エラー: IDを入力してください")
+            return
+        if p == None:
+            self._call_box(title="エラー", value="エラー: ポイントを入力してください")
+            return
+
+        loop.run_until_complete(self._check_id(i))
+        
+        if not self._cache:
+            logger.warning(f"APP: id {i} not exists")
+            self._call_box(title="エラー", text="エラー： 入力されたIDは存在しません")
+            return
+        else:
+            query = db.execute(
+                "UPDATE uketuke SET point=%s WHERE id=%s",
+                (int(p), int(i))
+            )
+            loop.run_until_complete(query)
+            self._call_box(title="情報", text="データの修正が完了しました")
 
     #_init
     def _init(self):
@@ -136,6 +218,8 @@ class Application(tk.Tk):
             point_entry = tk.Entry(self, font=self._font, textvariable=_s2, width=20, state="normal")
             #buttons
             submit = tk.Button(self, text="完了", width=20, font=self._font, command=self._submit_data)
+            delete = tk.Button(self, text="データ削除", width=20, font=self._font, command=self._delete_data)
+            fix = tk.Button(self, text="データ修正", width=20, font=self._font, command=self._fix_data)
             cancel = tk.Button(self, text="クリア", width=20, font=self._font, command=self._delete_text)
 
             #add data
@@ -144,6 +228,8 @@ class Application(tk.Tk):
             self.entries["point_label"] = point_label
             self.entries["point_entry"] = point_entry
             self.entries["submit_button"] = submit
+            self.entries["fix_button"] = fix
+            self.entries["delete_button"] = delete
             self.entries["cancel_button"] = cancel
             self.entries["name_var"] = _s1
             self.entries["point_var"] = _s2
@@ -154,24 +240,32 @@ class Application(tk.Tk):
             self.entries["point_label"].pack()
             self.entries["point_entry"].pack()
             self.entries["submit_button"].pack()
+            self.entries["fix_button"].pack()
+            self.entries["delete_button"].pack()
             self.entries["cancel_button"].pack()
         else:
             logger.info("APP: application run as user")
-            self.title("受付システム (一般用)")
+            self.title("受付検索システム (一般用)")
 
             _s = tk.StringVar()
             #label
             n_lv = tk.Label(self, text="ID", font=self._font)
             #entry
-            n_ent = tk.Entry(self, font=self._font, textvariable=_s, width=20, state="normal")
+            n_ent = tk.Entry(
+                self, font=self._font, textvariable=_s, width=20, state="normal"
+            )
+            #button
+            submit = tk.Button(self, text="検索", width=20, font=self._font, command=self._search)
 
             #add data
             self.entries["name_label"] = n_lv
             self.entries["name_entry"] = n_ent 
+            self.entries["submit_button"] = submit
 
             #place data
             self.entries["name_label"].pack()
             self.entries["name_entry"].pack()
+            self.entries["submit_button"].pack()
 
         exit = tk.Button(text="終了", width=20, font=self._font, command=lambda: self.quit())
         self.entries["exit_button"] = exit
