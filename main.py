@@ -217,7 +217,7 @@ class Application(tk.Tk):
             name_entry = tk.Entry(self, font=self._font, textvariable=_s1, width=20, state="normal")
             point_entry = tk.Entry(self, font=self._font, textvariable=_s2, width=20, state="normal")
             #buttons
-            submit = tk.Button(self, text="完了", width=20, font=self._font, command=self._submit_data)
+            submit = tk.Button(self, text="登録", width=20, font=self._font, command=self._submit_data)
             delete = tk.Button(self, text="データ削除", width=20, font=self._font, command=self._delete_data)
             fix = tk.Button(self, text="データ修正", width=20, font=self._font, command=self._fix_data)
             cancel = tk.Button(self, text="クリア", width=20, font=self._font, command=self._delete_text)
