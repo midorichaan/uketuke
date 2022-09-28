@@ -10,7 +10,6 @@ import tkinter.font as font
 
 from tkinter import messagebox
 from dotenv import load_dotenv
-from lib import database
 from logging import basicConfig, getLogger, INFO
 
 #load .env
@@ -26,13 +25,6 @@ basicConfig(
 loop = asyncio.get_event_loop()
 session = aiohttp.ClientSession()
 logger = getLogger("manage-system")
-db = database.Database(
-    host=os.environ["DB_HOST"],
-    port=int(os.environ["DB_PORT"]),
-    user=os.environ["DB_USER"],
-    password=os.environ["DB_PASSWD"],
-    db=os.environ["DB_DATABASE"]
-)
 
 class Application(tk.Tk):
 
@@ -82,11 +74,11 @@ class Application(tk.Tk):
 
     #_check_id
     async def _check_id(self, id: int):
-        d = await db.fetchone(
-            "SELECT * FROM uketuke WHERE id=%s",
-            (id,)
-        )
-        self._cache = d
+        d = await self.get_data(id)
+	if d == False:
+	    self._cache = None
+	else:
+	    self._cache = d
 
     #_submit_data
     def _submit_data(self):
@@ -153,7 +145,7 @@ class Application(tk.Tk):
         self.entries["point_var"].set(70)
 
     #delete_data
-    def _delete_data(self):
+    async def _delete_data(self):
         logger.info("APP: delete data called")
         i = self.entries["name_entry"].get()
 
@@ -168,10 +160,14 @@ class Application(tk.Tk):
             self._call_box(title="エラー", text="エラー： 入力されたIDは存在しません")
             return
         else:
-            query = db.execute("DELETE FROM uketuke WHERE id=%s", (i,))
-            loop.run_until_complete(query)
+            async with session.request(
+                "DELETE",
+                "https://api.midorichan.cf/v1/special/bunkasai",
+                headers={"Authorization": f"Bearer {os.environ['API_TOKEN']}"},
+                json={"id": id}
+            ) as r:
+                self._cache = await r.json()
             self._call_box(title="情報", text="データは正常に削除されました")
-            return
 
     #fix_data
     def _fix_data(self):
@@ -193,12 +189,15 @@ class Application(tk.Tk):
             self._call_box(title="エラー", text="エラー： 入力されたIDは存在しません")
             return
         else:
-            query = db.execute(
-                "UPDATE uketuke SET point=%s WHERE id=%s",
-                (int(p), int(i))
-            )
-            loop.run_until_complete(query)
-            self._call_box(title="情報", text="データの修正が完了しました")
+            async with session.request(
+                "PATCH",
+                "https://api.midorichan.cf/v1/special/bunkasai",
+                headers={"Authorization": f"Bearer {os.environ['API_TOKEN']}"},
+                json={"id": id}
+            ) as r:
+                self._cache = await r.json()
+	   
+	self._call_box(title="情報", text="データの修正が完了しました")
 
     #_init
     def _init(self):
