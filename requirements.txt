@@ -1,3 +1,2 @@
-aiomysql
 python-dotenv
 tkinter
